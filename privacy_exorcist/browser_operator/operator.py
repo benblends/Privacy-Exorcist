@@ -75,7 +75,7 @@ class BrowserOperator:
 
             # 3. Create CapSolver controller
             controller = create_capsolver_controller(
-                self._capsolver_key, ctx.playbook_entry
+                self._capsolver_key, ctx.playbook_entry, headless=ctx.headless
             )
 
             # 4. Build LLM

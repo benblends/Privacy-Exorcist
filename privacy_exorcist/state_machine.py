@@ -152,6 +152,9 @@ def get_next_state(
     if result == BrokerResult.CAPTCHA_BLOCKED:
         if retry_count >= MAX_RETRIES:
             return BrokerState.PERMANENTLY_FAILED
+        if not headless:
+            # Headed mode — user is available to solve manually
+            return BrokerState.AWAITING_HUMAN_INTERVENTION
         return BrokerState.CAPTCHA_BLOCKED
 
     # ── Non-retryable terminal outcomes ──

@@ -124,18 +124,22 @@ TURNSTILE_INJECT_JS = """
 def create_capsolver_controller(
     capsolver_key: Optional[str],
     playbook_entry,
+    *,
+    headless: bool = True,
 ) -> Controller:
     """Create a browser-use Controller with the 'Solve CAPTCHA' action.
 
     The controller maintains a per-execution captcha_attempts counter
     for defense-in-depth loop detection (independent of Orchestrator).
 
+    In headed mode (headless=False), when CapSolver fails with a bot
+    detection error, the action blocks on input() — the user solves
+    the CAPTCHA in the visible browser window and presses Enter.
+
     Args:
         capsolver_key: CapSolver API key (None if HITL-only).
         playbook_entry: PlaybookEntry with captcha_type, captcha_sitekey.
-
-    Returns:
-        Controller instance with registered 'Solve CAPTCHA' action.
+        headless: True for headless mode, False for visible browser.
     """
     # Mutable state shared with the closure
     state = {"captcha_attempts": 0}
@@ -228,6 +232,20 @@ def create_capsolver_controller(
             )
 
         except CapSolverError as e:
+            error_msg = str(e)
+            # Bot detection in headed mode → pause for human to solve
+            if not headless and ("600010" in error_msg or "bot" in error_msg.lower()):
+                try:
+                    input(
+                        "\n🖐️  HUMAN-IN-THE-LOOP: CAPTCHA requires human verification.\n"
+                        "   Please solve the CAPTCHA in the browser window.\n"
+                        "   Press Enter when done...\n"
+                    )
+                    return (
+                        "Human solved the CAPTCHA. The form should now submit. Continue."
+                    )
+                except EOFError:
+                    pass
             return f"CAPTCHA_BLOCKED: {e}"
         except Exception as e:
             return f"CAPTCHA_BLOCKED: Unexpected error — {e}"

@@ -35,11 +35,16 @@ def map_result(final_text: str, success_anchor: str) -> str:
         return BrokerResult.SUCCESS.value
 
     # ── CAPTCHA outcomes ──
+    # Bot detection / loop guard (agent exhausted internal retries → blocked)
     if "captcha_blocked" in text:
         return BrokerResult.CAPTCHA_BLOCKED.value
-    if ("captcha_loop_guard_triggered" in text or
-            ("captcha" in text and "token rejected" in text)):
+    if "captcha_loop_guard_triggered" in text:
         return BrokerResult.CAPTCHA_BLOCKED.value
+    if "bot detection" in text or "600010" in text:
+        return BrokerResult.CAPTCHA_BLOCKED.value
+    if "captcha" in text and "token rejected" in text:
+        return BrokerResult.CAPTCHA_BLOCKED.value
+    # Generic CAPTCHA encounter (first detection — orchestrator will route)
     if "captcha" in text and ("solve" in text or "failed" in text or "detected" in text):
         return BrokerResult.CAPTCHA_DETECTED.value
 
