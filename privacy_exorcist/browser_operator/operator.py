@@ -45,11 +45,15 @@ class BrowserOperator:
         capsolver_key: Optional[str] = None,
         headless: bool = True,
         agent_timeout: int = DEFAULT_AGENT_TIMEOUT,
+        ollama_model: Optional[str] = None,
+        ollama_base_url: str = "http://localhost:11434/v1",
     ):
         self._openai_key = openai_key
         self._capsolver_key = capsolver_key
         self._headless = headless
         self._agent_timeout = agent_timeout
+        self._ollama_model = ollama_model
+        self._ollama_base_url = ollama_base_url
 
     # ── Public API ───────────────────────────────────────────────────────
 
@@ -78,17 +82,26 @@ class BrowserOperator:
                 self._capsolver_key, ctx.playbook_entry, headless=ctx.headless
             )
 
-            # 4. Build LLM
+            # 4. Build LLMs (primary + fallback)
             llm = ChatOpenAI(
                 model="gpt-4o",
                 api_key=self._openai_key,
                 temperature=0.1,
             )
+            fallback = None
+            if self._ollama_model:
+                fallback = ChatOpenAI(
+                    api_key="ollama",
+                    base_url=self._ollama_base_url,
+                    model=self._ollama_model,
+                    temperature=0.1,
+                )
 
             # 5. Build and run agent
             agent = Agent(
                 task=task,
                 llm=llm,
+                fallback_llm=fallback,
                 browser_profile=browser_profile,
                 controller=controller,
             )

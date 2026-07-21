@@ -110,6 +110,8 @@ async def main() -> int:
         openai_key=config.openai_key,
         capsolver_key=config.capsolver_key,
         headless=config.headless,
+        ollama_model=os.environ.get("OLLAMA_MODEL"),
+        ollama_base_url=os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434/v1"),
     )
 
     # ── Signal handler ───────────────────────────────────────────────────
