@@ -332,7 +332,7 @@ class TestStateMachine:
     def test_tv01_success(self):
         assert (
             get_next_state(BrokerState.IN_PROGRESS, BrokerResult.SUCCESS, retry_count=0)
-            == BrokerState.SUBMITTED
+            == BrokerState.SCRUBBED  # Direct form — no email verification
         )
 
     # ── TV02: VERIFICATION_REQUIRED → SUBMITTED ──────────────────────────

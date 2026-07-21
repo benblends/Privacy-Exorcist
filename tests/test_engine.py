@@ -124,7 +124,7 @@ class TestOrchestratorLifecycle:
 
         # Verify SUBMITTED
         rec = db.get_broker(broker_id)
-        assert rec.current_status == BrokerState.SUBMITTED
+        assert rec.current_status == BrokerState.SCRUBBED
         assert not orchestrator.should_retry(broker_id)
 
     def test_captcha_auto_solve(self, orchestrator, db):
@@ -143,11 +143,11 @@ class TestOrchestratorLifecycle:
         # captcha_solves incremented
         assert rec.captcha_solves == 1
 
-        # Retry: browser succeeds after CAPTCHA solved
+        # Retry: browser succeeds after CAPTCHA solved → SCRUBBED
         result2 = _mock_result(broker_id, BrokerResult.SUCCESS.value)
         orchestrator.finish_broker(broker_id, result2)
         rec = db.get_broker(broker_id)
-        assert rec.current_status == BrokerState.SUBMITTED
+        assert rec.current_status == BrokerState.SCRUBBED
 
     def test_captcha_loop_guard_headless(self, orchestrator, db):
         """CAPTCHA_DETECTED × 3 in headless → CAPTCHA_BLOCKED."""
@@ -276,9 +276,9 @@ class TestOrchestratorBookkeeping:
             "simplebroker",
             _mock_result("simplebroker", BrokerResult.SUCCESS.value),
         )
-        # simplebroker is SUBMITTED (not terminal) → still pending
+        # simplebroker is SCRUBBED (terminal) → excluded from pending
         pending = orchestrator.get_pending_brokers()
-        assert "simplebroker" in pending
+        assert "simplebroker" not in pending
 
         # Mark as NO_RECORD (terminal)
         orchestrator.start_broker("thatsthem")
@@ -339,7 +339,7 @@ class TestCallbacks:
             _mock_result("simplebroker", BrokerResult.SUCCESS.value),
         )
         assert len(transitions) == 2
-        assert transitions[1] == ("simplebroker", BrokerState.IN_PROGRESS, BrokerState.SUBMITTED)
+        assert transitions[1] == ("simplebroker", BrokerState.IN_PROGRESS, BrokerState.SCRUBBED)
 
     def test_on_hitl_prompt_callback(self, sample_profile, sample_playbook, db):
         hitl_calls: list[str] = []

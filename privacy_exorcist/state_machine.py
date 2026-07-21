@@ -32,6 +32,7 @@ VALID_TRANSITIONS: dict[BrokerState, set[BrokerState]] = {
     BrokerState.IN_PROGRESS: {
         BrokerState.IN_PROGRESS,  # Self-loop: CAPTCHA auto-solve re-enters submission
         BrokerState.SUBMITTED,
+        BrokerState.SCRUBBED,     # Direct form success — no email verification
         BrokerState.NO_RECORD,
         BrokerState.AWAITING_HUMAN_INTERVENTION,
         BrokerState.CAPTCHA_BLOCKED,
@@ -39,6 +40,7 @@ VALID_TRANSITIONS: dict[BrokerState, set[BrokerState]] = {
         BrokerState.PERMANENTLY_FAILED,
     },
     BrokerState.SUBMITTED: {
+        BrokerState.IN_PROGRESS,          # Re-run a previously submitted broker
         BrokerState.AWAITING_VERIFICATION,
         BrokerState.SCRUBBED,
     },
@@ -163,7 +165,7 @@ def get_next_state(
 
     # ── Success outcomes ──
     if result == BrokerResult.SUCCESS:
-        return BrokerState.SUBMITTED
+        return BrokerState.SCRUBBED  # Direct form — no email verification needed
 
     if result == BrokerResult.VERIFICATION_REQUIRED:
         return BrokerState.SUBMITTED  # Orchestrator then moves: SUBMITTED → AWAITING_VERIFICATION
