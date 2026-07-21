@@ -10,10 +10,12 @@ CRITICAL FRAMEWORK QUIRKS (from 5 failed runs):
   - CDP via browser_session.session_manager._get_session_for_target()
   - CapSolver API: POST createTask → poll getTaskResult (20×2s = 40s max)
   - Task types: AntiTurnstileTaskProxyLess (Cloudflare Turnstile)
+  - 2-second pre-solve delay lets Turnstile DOM fully initialize
 """
 
 from __future__ import annotations
 
+import asyncio
 import time
 from typing import Optional
 
@@ -212,6 +214,8 @@ def create_capsolver_controller(
 
             # ── Solve via CapSolver ──
             page = page_url or playbook_entry.seed_url
+            # Brief delay to let Turnstile DOM fully initialize
+            await asyncio.sleep(2)
             token = solve_turnstile_via_api(sitekey, page, capsolver_key)
 
             # ── Inject token via CDP ──

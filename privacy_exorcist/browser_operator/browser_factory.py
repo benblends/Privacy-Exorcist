@@ -3,9 +3,14 @@ Stealth BrowserProfile factory for PrivacyExorcist.
 
 SPEC-002 §3.2 + §5 Phase 1: Creates a browser-use BrowserProfile
 with anti-detection flags validated in spike runs #4-9.
+
+Each session gets a slightly randomized viewport (±50px from 1920×1080)
+to make fingerprint less deterministic across runs.
 """
 
 from __future__ import annotations
+
+import random
 
 from browser_use import BrowserProfile
 
@@ -22,6 +27,11 @@ STEALTH_ARGS = [
     "--no-sandbox",
     "--disable-dev-shm-usage",
 ]
+
+# Base viewport — jittered ±50px per axis per session
+BASE_VIEWPORT_WIDTH = 1920
+BASE_VIEWPORT_HEIGHT = 1080
+VIEWPORT_JITTER = 50
 
 
 # ── Factory ────────────────────────────────────────────────────────────────
@@ -40,10 +50,14 @@ def create_browser_profile(headless: bool = True) -> BrowserProfile:
     Returns:
         Configured BrowserProfile ready for browser-use Agent.
     """
+    width = BASE_VIEWPORT_WIDTH + random.randint(-VIEWPORT_JITTER, VIEWPORT_JITTER)
+    height = BASE_VIEWPORT_HEIGHT + random.randint(-VIEWPORT_JITTER, VIEWPORT_JITTER)
+
     return BrowserProfile(
         headless=headless,
         disable_security=True,
         chromium_sandbox=False,
         user_agent=STEALTH_USER_AGENT,
         args=list(STEALTH_ARGS),
+        window_size={"width": width, "height": height},
     )

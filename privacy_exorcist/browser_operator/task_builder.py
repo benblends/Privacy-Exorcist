@@ -9,6 +9,7 @@ Prompt engineering rules (spike-validated, runs #7-9):
   - Use "MUST" and "DO NOT" language for CAPTCHA handling
   - Include exact success_anchor text
   - Mention "Solve CAPTCHA" action by name
+  - Click CAPTCHA widget first to trigger turnstile, then call solver
 """
 
 from __future__ import annotations
@@ -38,9 +39,10 @@ def _build_direct_form_task(ctx: TaskContext) -> str:
     entry = ctx.playbook_entry
 
     return (
-        f"CRITICAL: If you see a CAPTCHA, Turnstile widget, or "
-        f"\"verify you are human\" challenge, you MUST use the "
-        f"'Solve CAPTCHA' tool. DO NOT click the CAPTCHA yourself.\n"
+        f'CRITICAL: If you see a "Verify you are human" Turnstile widget, '
+        f"click the widget ONCE to trigger the challenge, THEN call "
+        f"'Solve CAPTCHA' to inject the token. DO NOT click the checkbox "
+        f"yourself — the tool handles it.\n"
         f"\n"
         f"GOAL: Complete the opt-out flow on {entry.broker_id}.\n"
         f"1. Navigate to {entry.seed_url}\n"
@@ -53,10 +55,10 @@ def _build_direct_form_task(ctx: TaskContext) -> str:
         f"   - Zip: {p.current_zip}\n"
         f"   - Phone: {p.current_phone}\n"
         f"   - Email: {p.sentinel_email}\n"
-        f"3. Check any required consent checkboxes or \"I am not a robot\" toggles\n"
-        f"4. Use 'Solve CAPTCHA' if you see any challenge\n"
+        f'3. Check any required consent checkboxes or "I am not a robot" toggles\n'
+        f"4. Click the Turnstile widget to trigger it, then call 'Solve CAPTCHA'\n"
         f"5. Click the submit / opt-out button\n"
-        f"6. Look for confirmation text: \"{entry.success_anchor}\"\n"
+        f'6. Look for confirmation text: "{entry.success_anchor}"\n'
         f"7. If you see the confirmation, report SUCCESS.\n"
         f"   If you see any error or block, describe exactly what happened.\n"
         f"\n"
@@ -76,9 +78,10 @@ def _build_search_and_claim_task(ctx: TaskContext) -> str:
     entry = ctx.playbook_entry
 
     return (
-        f"CRITICAL: If you see a CAPTCHA, Turnstile widget, or "
-        f"\"verify you are human\" challenge, you MUST use the "
-        f"'Solve CAPTCHA' tool. DO NOT click the CAPTCHA yourself.\n"
+        f'CRITICAL: If you see a "Verify you are human" Turnstile widget, '
+        f"click the widget ONCE to trigger the challenge, THEN call "
+        f"'Solve CAPTCHA' to inject the token. DO NOT click the checkbox "
+        f"yourself — the tool handles it.\n"
         f"\n"
         f"GOAL: Find and initiate the opt-out for {p.first_name} {p.last_name} "
         f"on {entry.broker_id}.\n"
@@ -93,9 +96,9 @@ def _build_search_and_claim_task(ctx: TaskContext) -> str:
         f"5. If a confirmation form appears, fill it with:\n"
         f"   - Email: {p.sentinel_email}\n"
         f"   - Phone: {p.current_phone}\n"
-        f"6. Use 'Solve CAPTCHA' if you see any challenge\n"
+        f"6. Click the Turnstile widget to trigger it, then call 'Solve CAPTCHA'\n"
         f"7. Submit the request\n"
-        f"8. Look for confirmation text: \"{entry.success_anchor}\"\n"
+        f'8. Look for confirmation text: "{entry.success_anchor}"\n'
         f"9. If you see the confirmation, report SUCCESS.\n"
         f"   If you see any error or block, describe exactly what happened.\n"
         f"\n"
