@@ -1,0 +1,43 @@
+# ── Secrets & PII (never commit) ──────────────────────────────
+profile.json.enc
+*.key
+*.pem
+
+# ── Runtime artifacts ─────────────────────────────────────────
+privacy_exorcist.db
+*.db-journal
+*.db-wal
+
+# ── Python ─────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+
+# ── Virtual environment ────────────────────────────────────────
+.venv/
+venv/
+
+# ── OS ─────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ── IDE ────────────────────────────────────────────────────────
+.vscode/
+.idea/
+
+# ── Spike artifacts (throwaway, not production) ────────────────
+capsolver_v2.py
+capsolver_v3.py
+capsolver_spike.py
+spike_*.py
+e2e_*.py
+stealth_*.py
+hybrid_spike.py
+capsolver_result_*.json
+capsolver_v3_result.json
+spike_result_*.json
+stealth_result_*.json
+e2e_result_*.json

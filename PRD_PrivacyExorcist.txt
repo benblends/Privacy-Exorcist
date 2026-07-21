@@ -1,0 +1,363 @@
+Product Requirement Document (PRD)
+Project Name: PrivacyExorcist (Working Title)
+Version: 1.1 — Spike-Validated Architecture
+Status: Validated (9 spike runs, 1 automated deletion confirmed)
+Date: July 2026
+
+═══════════════════════════════════════════════════════════════════════════════
+1. PRODUCT VISION & VALUE PROPOSITION
+═══════════════════════════════════════════════════════════════════════════════
+
+PrivacyExorcist is a local-first, open-source AI-driven privacy engine that
+autonomously identifies and purges a user's Personally Identifiable Information
+(PII) from high-impact data brokers. It uses a multi-modal visual AI agent to
+reason through web forms, outmaneuver anti-consumer "dark patterns," and execute
+data suppression requests.
+
+Core Objective: Lower the technical and financial barrier of data privacy by
+providing a free, transparent tool that cuts off secondary pipelines feeding
+identity theft, surveillance pricing, corporate profiling, and AI-driven scams.
+
+V1.0 ships with a HYBRID CAPTCHA ORCHESTRATION MODEL:
+  - Fully automated via CapSolver API (sub-penny per broker, optional .env key)
+  - Human-in-the-Loop (HITL) fallback for users without API keys
+  - Developers get a working tool for zero cost; power users unlock automation
+
+═══════════════════════════════════════════════════════════════════════════════
+2. SCOPE & TARGET AUDIENCE (V1.0)
+═══════════════════════════════════════════════════════════════════════════════
+
+Target Audience: Developers, privacy engineers, and technical self-hosters.
+
+Deployment Model: Local Python codebase, configured via .env + profile.json,
+executed from terminal. Optional CapSolver API key for hands-free automation.
+
+Data Boundary: The Data Vault (profile.json, SQLite) is local. The Inference
+Layer (vision model screenshots) transits cloud LLM endpoints. This is an
+explicit, documented trade-off — the PRD and README will state:
+  "Your PII stays on your machine. Screenshots of broker pages (which may
+   contain PII) are sent to your configured LLM provider for visual reasoning."
+
+Agent Execution Model: Cloud-Assisted Intelligence. The orchestrator runs
+locally. Complex vision and CAPTCHA-solving tasks delegate to cloud-hosted
+multi-modal LLM endpoints via user-provided API keys.
+
+═══════════════════════════════════════════════════════════════════════════════
+3. SYSTEM ARCHITECTURE
+═══════════════════════════════════════════════════════════════════════════════
+
+3.1 Agent Topology (Hierarchical Agent Pattern)
+
+                  ┌──────────────────────────────┐
+                  │      User Configuration      │
+                  │   (profile.json & .env)      │
+                  └──────────────┬───────────────┘
+                                 ▼
+                  ┌──────────────────────────────┐
+                  │    LOCAL BOSS AGENT          │
+                  │   (Orchestrator Engine)      │
+                  │   ┌──────────────────────┐   │
+                  │   │  Hybrid CAPTCHA       │   │
+                  │   │  Orchestrator         │   │
+                  │   │  CapSolver │ HITL     │   │
+                  │   └──────────────────────┘   │
+                  └──────┬────────────────┬──────┘
+                         │                │
+        ┌────────────────┴┐              ┌┴────────────────┐
+        │  SUB-AGENT 1    │              │  SUB-AGENT 2    │
+        │  Browser Worker │              │  Inbox Sentinel │
+        │  (browser-use   │              │  (Async IMAP +  │
+        │   + CapSolver   │              │   httpx bypass) │
+        │   controller)   │              │                 │
+        └─────────────────┘              └─────────────────┘
+
+3.2 Anti-Bot Defense Layers (Spike-Validated)
+
+Data brokers deploy layered defenses. We've mapped and countered two of them:
+
+  ┌─────────────────────────────────────────────────────────────────────┐
+  │ LAYER 1: TLS Fingerprint (JA3/JA4)                                 │
+  │ Symptom:  403 Forbidden before page loads (ThatsThem baseline)     │
+  │ Counter:  Stealth Chromium args + custom User-Agent                │
+  │           --disable-blink-features=AutomationControlled             │
+  │           Custom Chrome 131 UA string (not HeadlessChrome)          │
+  │ Status:   SOLVED — tested on ThatsThem (403 → page loads)          │
+  ├─────────────────────────────────────────────────────────────────────┤
+  │ LAYER 2: Behavioral CAPTCHA (Turnstile, reCAPTCHA, hCaptcha)       │
+  │ Symptom:  "Verify you are human" gate at form submission           │
+  │ Counter:  CapSolver API (AntiTurnstileTaskProxyLess, etc.)          │
+  │           Token extracted → CapSolver solves → token injected       │
+  │           Fallback: HITL terminal prompt (free, 100% local)         │
+  │ Status:   SOLVED — tested on ThatsThem (Turnstile → form accepted) │
+  ├─────────────────────────────────────────────────────────────────────┤
+  │ LAYER 3: Behavioral Fingerprinting (DataDome)                       │
+  │ Symptom:  Device check after page interaction (Whitepages)          │
+  │ Counter:  Requires proxy + UA synchronization with CapSolver        │
+  │           (V1.1 research: cloakbrowser / XDriver binary patching)   │
+  │ Status:   PARTIAL — CapSolver supports DataDome, needs proxy sync   │
+  └─────────────────────────────────────────────────────────────────────┘
+
+3.3 Finite State Machine (FSM)
+
+Each broker flows through a state machine. CAPTCHA gates trigger a dynamic
+branch based on whether CAPSOLVER_API_KEY is present in .env:
+
+  FILLING_FORM ──► SUBMITTING ──► [CAPTCHA_DETECTED]
+                                      │
+                    ┌─────────────────┴─────────────────┐
+                    ▼                                   ▼
+           ┌──────────────────┐              ┌──────────────────┐
+           │  CapSolver Path  │              │   HITL Path      │
+           │  (API key set)   │              │  (no API key)    │
+           │  Auto-solve      │              │  Terminal prompt │
+           │  Inject token    │              │  User clicks box │
+           └────────┬─────────┘              └────────┬─────────┘
+                    │                                 │
+                    └────────────────┬────────────────┘
+                                     ▼
+                            ┌──────────────────┐
+                            │  Poll Success    │
+                            │  Anchor Text     │
+                            └────────┬─────────┘
+                                     ▼
+                              SUCCESS / FAILED
+
+3.4 Sub-Agent Return Code Taxonomy
+
+The Browser Operator returns structured status codes so the Orchestrator can
+make informed retry/skip decisions:
+
+  SUCCESS              — Suppression request accepted, confirmation seen
+  VERIFICATION_REQUIRED — Submitted, email verification pending (→ Inbox Sentinel)
+  CAPTCHA_DETECTED     — CAPTCHA gate encountered (→ CapSolver or HITL)
+  CAPTCHA_BLOCKED      — CAPTCHA could not be solved (→ FAILED in ledger)
+  BROKER_UNREACHABLE   — DNS fail, timeout, 5xx (→ retry with backoff)
+  NO_MATCH_FOUND       — Search returned zero results for profile
+  MULTIPLE_MATCH       — Too many candidates to auto-disambiguate
+  FORM_SUBMIT_FAILED   — Form filled but server rejected
+  BLOCKED_403          — HTTP 403 (TLS fingerprint — should not occur with stealth)
+
+═══════════════════════════════════════════════════════════════════════════════
+4. TECHNICAL STACK (SPIKE-VALIDATED)
+═══════════════════════════════════════════════════════════════════════════════
+
+Core Language:       Python 3.11+
+Automation:          browser-use v0.13.6 + Playwright (Chromium, headless)
+                     Note: browser-use v0.13+ uses its own LLM wrappers
+                     (browser_use.llm.ChatOpenAI), NOT LangChain's ChatOpenAI.
+                     The framework uses CDP (Chrome DevTools Protocol) for
+                     browser interaction, not Playwright's Page object.
+CAPTCHA Solving:     CapSolver API (direct HTTP, not Python SDK due to v1.0.7
+                     parameter mismatch). Task types:
+                       AntiTurnstileTaskProxyLess (Cloudflare Turnstile)
+                       ReCaptchaV2TaskProxyLess (Google reCAPTCHA v2)
+                       HCaptchaTaskProxyLess (hCaptcha)
+                     Pricing: ~$0.65/1,000 solves
+LLM Vision:          OpenAI gpt-4o (primary). Anthropic claude-3-5-sonnet
+                     supported via browser-use.llm.ChatAnthropic.
+State Persistence:   SQLite (local)
+Email Processing:    IMAP (SSL) + httpx for verification link clicks
+                     (headless HTTP GET, no browser spawn needed)
+HMI:                 Terminal CLI with rich/logging color-coded output
+
+Stealth Browser Configuration (mandatory baseline):
+  BrowserProfile(
+      headless=True,
+      disable_security=True,
+      chromium_sandbox=False,
+      user_agent="Mozilla/5.0 ... Chrome/131.0.0.0 Safari/537.36",
+      args=[
+          "--disable-blink-features=AutomationControlled",
+          "--disable-infobars",
+          "--no-sandbox",
+          "--disable-dev-shm-usage",
+      ],
+  )
+
+Custom Controller Actions (for CapSolver integration):
+  @controller.action('Solve CAPTCHA — ...')
+  async def solve_captcha(browser_session=None, page_url=None, cdp_client=None, ...):
+      # Access page via CDP: browser_session.session_manager._get_session_for_target()
+      # Extract sitekey via cdp.send.Runtime.evaluate()
+      # Call CapSolver API (direct HTTP)
+      # Inject token via cdp.send.Runtime.evaluate()
+      # Return status string to agent
+
+  IMPORTANT: browser-use v0.13.6 controller actions receive browser_session,
+  cdp_client, page_url, NOT Playwright Page. Use CDP for all DOM interaction.
+  **kwargs is forbidden — declare all special_context params explicitly.
+
+═══════════════════════════════════════════════════════════════════════════════
+5. FUNCTIONAL REQUIREMENTS
+═══════════════════════════════════════════════════════════════════════════════
+
+5.1 Data Layer & Local Vault
+
+REQ-001: Ingest profile.json (local-only, unencrypted):
+  {
+    "first_name": "Jane",
+    "last_name": "Doe",
+    "middle_name": "Alex",
+    "aliases": ["Jane A. Smith"],
+    "current_street": "123 Main St",
+    "current_city": "Austin",
+    "current_state": "TX",
+    "current_zip": "78701",
+    "current_phone": "512-555-0147",
+    "past_zips": ["90210", "30303"],
+    "birth_year": "1988",
+    "sentinel_email": "jane.optout+sentinel@domain.com"
+  }
+
+REQ-002: Block outbound telemetry to any domain outside configured LLM and
+CapSolver endpoints.
+
+5.2 Curated Playbook (playbook.json)
+
+REQ-003: V1.0 playbook is a curated directory of broker seed profiles. Each
+entry contains the starting URL, known CAPTCHA type, sitekey (if known), and
+success anchor text. The agent self-heals the path between seed_url and
+success_anchor — no brittle step-by-step scripts.
+
+REQ-004: playbook.json schema (spike-validated):
+
+  {
+    "brokers": [
+      {
+        "broker_id": "thatsthem",
+        "seed_url": "https://thatsthem.com/optout",
+        "success_anchor": "Request Submitted",
+        "flow_type": "DIRECT_FORM",
+        "captcha_type": "cloudflare_turnstile",
+        "captcha_sitekey": "0x4AAAAAACiKzu913X3aFRkP",
+        "protection_layer": 2,
+        "known_blockers": ["turnstile"],
+        "last_verified": "2026-07-19",
+        "notes": "Direct form. Turnstile at submit. CapSolver AntiTurnstileTaskProxyLess."
+      },
+      {
+        "broker_id": "whitepages",
+        "seed_url": "https://www.whitepages.com/suppression-requests",
+        "success_anchor": "successfully submitted",
+        "flow_type": "SEARCH_AND_CLAIM",
+        "captcha_type": "datadome",
+        "captcha_sitekey": null,
+        "protection_layer": 3,
+        "known_blockers": ["datadome_device_check"],
+        "last_verified": "2026-07-19",
+        "notes": "DataDome at interaction layer. Needs proxy sync. V1.1 target."
+      }
+    ]
+  }
+
+5.3 Browser Operator Execution
+
+REQ-005: The Browser Operator receives a high-level task (not micro-managed
+clicks). The Orchestrator says "Navigate to this URL, fill the form with these
+profile fields, submit, and report the outcome." browser-use handles the
+internal loop and returns a structured status code.
+
+REQ-006: When CAPTCHA_DETECTED is returned:
+  - If CAPSOLVER_API_KEY is set → call CapSolver API, inject token, retry submit
+  - If CAPSOLVER_API_KEY is empty → HITL terminal prompt, pause for user click
+  - Update SQLite ledger with new state
+
+REQ-007: On SUCCESS or VERIFICATION_REQUIRED:
+  - Scrape confirmation banner text
+  - Take timestamped screenshot
+  - Write operation state to SQLite
+  - Signal orchestrator to proceed to next broker
+
+5.4 IMAP Inbox Sentinel
+
+REQ-008: Poll target server via IMAP on async 60-second loop.
+
+REQ-009: Extract verification URLs from unread emails matching playbook domains.
+
+REQ-010: Click verification links via lightweight httpx GET first. Only escalate
+to browser agent if the page requires JavaScript (detected via <noscript> tags,
+blank SPA shells, or <200 char body).
+
+5.5 State Tracking (SQLite Schema)
+
+REQ-011: SQLite schema with CAPTCHA-aware states:
+
+  Column               Type        Purpose
+  ──────────────────────────────────────────────────────────
+  broker_id            TEXT        PRIMARY KEY
+  current_status       TEXT        QUEUED, SUBMITTED,
+                                   AWAITING_VERIFICATION,
+                                   AWAITING_HUMAN_INTERVENTION,
+                                   CAPTCHA_BLOCKED,
+                                   SCRUBBED, FAILED
+  last_run_timestamp   DATETIME    Historical processing date
+  retry_count          INTEGER     Max 3 before FAILED
+  captcha_solves       INTEGER     CapSolver calls for cost tracking
+  error_log            TEXT        Raw trace or blocker description
+
+5.6 Human-Machine Interface (HMI)
+
+REQ-012: Color-coded terminal output via rich/logging with structured reasoning
+previews: [REASONING], [ACTION], [CAPTCHA], [SUCCESS].
+
+REQ-013: HEADLESS=False support in .env for visual auditing (developer mode).
+Note: headless mode works for automated runs; headed mode is for HITL CAPTCHA
+solving and developer debugging.
+
+REQ-014: Global panic switch (Ctrl+C) — kill all browser instances, close IMAP
+handshakes, flush SQLite state cleanly.
+
+REQ-015: HITL CAPTCHA prompt format:
+  🚨 [ACTION REQUIRED]: Anti-bot gate triggered on {broker_id}.
+  Please solve the CAPTCHA in the open Chromium window.
+  Press Enter when done to let the agent continue.
+
+═══════════════════════════════════════════════════════════════════════════════
+6. OUT OF SCOPE FOR V1.0
+═══════════════════════════════════════════════════════════════════════════════
+
+- No GUI Dashboard: Terminal CLI only.
+- No CAPTCHA solving WITHOUT CapSolver or HITL: If neither path is available,
+  broker is marked CAPTCHA_BLOCKED in ledger and skipped.
+- No local model weights: Execution relies on hosted multi-modal APIs.
+- No multi-tenant support: One profile.json per installation.
+- No DataDome/behavioral bypass (Layer 3): Requires proxy synchronization.
+  Targeted for V1.1 via cloakbrowser / XDriver binary driver patching.
+- No CAPTCHA-avoidant broker hunting: V1 targets the Top 15 people-search
+  aggregators. If a broker has CAPTCHA, V1 handles it via CapSolver or HITL.
+
+═══════════════════════════════════════════════════════════════════════════════
+7. V1.1 ROADMAP (RESEARCH ITEMS)
+═══════════════════════════════════════════════════════════════════════════════
+
+- cloakbrowser / XDriver: Binary-level Playwright/Chromium patching to strip
+  CDP hooks and __pwInitScripts, enabling DataDome bypass without proxies.
+- Camoufox: Firefox-based stealth layer as alternative to Chromium.
+- Residential proxy integration for CapSolver UA/proxy sync on Layer 3 brokers.
+- Playbook community contribution system (GitHub PR-based playbook updates).
+
+═══════════════════════════════════════════════════════════════════════════════
+8. SPIKE VALIDATION LOG
+═══════════════════════════════════════════════════════════════════════════════
+
+  Run  Target       Mode              Outcome
+  ───────────────────────────────────────────────────────────
+  1    Whitepages   Baseline          CAPTCHA blocked
+  2    ThatsThem    Baseline          403 Forbidden
+  3    Nuwber       Baseline          CAPTCHA cascade
+  4    ThatsThem    Stealth args      Page loaded (TLS bypass ✓)
+  5    Whitepages   Stealth args      DataDome blocked
+  6    ThatsThem    Stealth E2E       CAPTCHA at submit
+  7    ThatsThem    Controller test   @controller.action called ✓
+  8    ThatsThem    CapSolver CDP     SDK param mismatch
+  9    ThatsThem    CapSolver Direct  SUBMITTED ✓ (68s, Turnstile solved)
+
+  Proven:
+    ✓ Vision model navigates forms and maps profile fields
+    ✓ Stealth args bypass TLS fingerprinting (403 → page load)
+    ✓ @controller.action pattern works for custom tools
+    ✓ CDP Runtime.evaluate for DOM interaction
+    ✓ CapSolver AntiTurnstileTaskProxyLess solves Cloudflare Turnstile
+    ✓ Token injection into Turnstile widget
+    ✓ End-to-end automated deletion (ThatsThem)
+    ✓ HITL fallback prompt fires correctly when no API key present

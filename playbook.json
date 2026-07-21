@@ -1,0 +1,16 @@
+{
+    "brokers": [
+        {
+            "broker_id": "thatsthem",
+            "seed_url": "https://thatsthem.com/optout",
+            "success_anchor": "Request Submitted",
+            "flow_type": "DIRECT_FORM",
+            "captcha_type": "cloudflare_turnstile",
+            "captcha_sitekey": "0x4AAAAAACiKzu913X3aFRkP",
+            "protection_layer": 2,
+            "known_blockers": ["turnstile"],
+            "last_verified": "2026-07-19",
+            "notes": "Direct form. Turnstile at submit. CapSolver AntiTurnstileTaskProxyLess."
+        }
+    ]
+}
