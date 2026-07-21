@@ -9,8 +9,56 @@
             "captcha_sitekey": "0x4AAAAAACiKzu913X3aFRkP",
             "protection_layer": 2,
             "known_blockers": ["turnstile"],
-            "last_verified": "2026-07-19",
-            "notes": "Direct form. Turnstile at submit. CapSolver AntiTurnstileTaskProxyLess."
+            "last_verified": "2026-07-21",
+            "notes": "Spike-validated: 4+ live runs. Direct form + Turnstile at submit."
+        },
+        {
+            "broker_id": "fastpeoplesearch",
+            "seed_url": "https://www.fastpeoplesearch.com/removal",
+            "success_anchor": "removal request has been received",
+            "flow_type": "SEARCH_AND_CLAIM",
+            "captcha_type": "recaptcha_v2",
+            "captcha_sitekey": null,
+            "protection_layer": 2,
+            "known_blockers": ["recaptcha"],
+            "last_verified": null,
+            "notes": "UNTESTED. Search by name+city+state, select match, click removal. CAPTCHA at final confirmation. Use ReCaptchaV2TaskProxyLess."
+        },
+        {
+            "broker_id": "truepeoplesearch",
+            "seed_url": "https://www.truepeoplesearch.com/removal",
+            "success_anchor": "removal request has been submitted",
+            "flow_type": "SEARCH_AND_CLAIM",
+            "captcha_type": "recaptcha_v2",
+            "captcha_sitekey": null,
+            "protection_layer": 2,
+            "known_blockers": ["recaptcha"],
+            "last_verified": null,
+            "notes": "UNTESTED. CAPTCHA gate BEFORE search (agree to terms, enter email, solve CAPTCHA, then search). Inverted flow from typical."
+        },
+        {
+            "broker_id": "radaris",
+            "seed_url": "https://radaris.com/control/privacy",
+            "success_anchor": "request has been submitted",
+            "flow_type": "SEARCH_AND_CLAIM",
+            "captcha_type": "recaptcha_v2",
+            "captcha_sitekey": null,
+            "protection_layer": 2,
+            "known_blockers": ["recaptcha"],
+            "last_verified": null,
+            "notes": "UNTESTED. Requires 2-step: (1) search main directory for profile, copy URL, (2) paste URL into control/privacy form with email."
+        },
+        {
+            "broker_id": "peekyou",
+            "seed_url": "https://www.peekyou.com/",
+            "success_anchor": "opt-out request has been received",
+            "flow_type": "SEARCH_AND_CLAIM",
+            "captcha_type": "recaptcha_v2",
+            "captcha_sitekey": null,
+            "protection_layer": 2,
+            "known_blockers": ["recaptcha"],
+            "last_verified": null,
+            "notes": "UNTESTED. Search for profile, parse 9-digit ID from URL. May require email REPLY (not click) for confirmation."
         }
     ]
 }

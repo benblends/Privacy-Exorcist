@@ -30,26 +30,39 @@ CAPSOLVER_POLL_URL = "https://api.capsolver.com/getTaskResult"
 POLL_INTERVAL = 2       # seconds between polls
 POLL_MAX_ATTEMPTS = 20  # 40 seconds total
 
+# CapSolver task type mapping
+CAPTCHA_TYPE_TO_TASK = {
+    "cloudflare_turnstile": "AntiTurnstileTaskProxyLess",
+    "turnstile": "AntiTurnstileTaskProxyLess",
+    "recaptcha_v2": "ReCaptchaV2TaskProxyLess",
+    "recaptcha": "ReCaptchaV2TaskProxyLess",
+    "hcaptcha": "HCaptchaTaskProxyLess",
+}
+DEFAULT_CAPTCHA_TASK = "AntiTurnstileTaskProxyLess"
+
 
 class CapSolverError(Exception):
     """Raised when CapSolver API fails to produce a valid token."""
     pass
 
 
-def solve_turnstile_via_api(
+def solve_captcha_via_api(
     sitekey: str,
     page_url: str,
     api_key: str,
+    task_type: str = "AntiTurnstileTaskProxyLess",
 ) -> str:
-    """Solve a Cloudflare Turnstile CAPTCHA via CapSolver direct HTTP.
+    """Solve a CAPTCHA via CapSolver direct HTTP.
 
     Args:
-        sitekey: Turnstile sitekey (e.g., 0x4AAAAAACiKzu913X3aFRkP).
-        page_url: URL of the page containing the Turnstile widget.
+        sitekey: CAPTCHA sitekey.
+        page_url: URL of the page containing the CAPTCHA.
         api_key: CapSolver API key.
+        task_type: CapSolver task type (AntiTurnstileTaskProxyLess,
+                   ReCaptchaV2TaskProxyLess, HCaptchaTaskProxyLess).
 
     Returns:
-        Turnstile solution token (~500+ chars).
+        Solution token.
 
     Raises:
         CapSolverError: Task creation failed, polling timed out, or no token.
@@ -60,7 +73,7 @@ def solve_turnstile_via_api(
         json={
             "clientKey": api_key,
             "task": {
-                "type": "AntiTurnstileTaskProxyLess",
+                "type": task_type,
                 "websiteURL": page_url,
                 "websiteKey": sitekey,
             },
@@ -96,6 +109,10 @@ def solve_turnstile_via_api(
             )
 
     raise CapSolverError(f"CapSolver timed out after {POLL_MAX_ATTEMPTS * POLL_INTERVAL}s")
+
+
+# Backward-compatible alias
+solve_turnstile_via_api = solve_captcha_via_api
 
 
 # ── Turnstile Token Injection ─────────────────────────────────────────────
@@ -214,9 +231,11 @@ def create_capsolver_controller(
 
             # ── Solve via CapSolver ──
             page = page_url or playbook_entry.seed_url
-            # Brief delay to let Turnstile DOM fully initialize
+            # Determine the correct CapSolver task type from playbook
+            task_type = CAPTCHA_TYPE_TO_TASK.get(captcha_type, DEFAULT_CAPTCHA_TASK)
+            # Brief delay to let CAPTCHA DOM fully initialize
             await asyncio.sleep(2)
-            token = solve_turnstile_via_api(sitekey, page, capsolver_key)
+            token = solve_captcha_via_api(sitekey, page, capsolver_key, task_type=task_type)
 
             # ── Inject token via CDP ──
             target_id = browser_session.agent_focus_target_id

@@ -37,12 +37,14 @@ def _build_direct_form_task(ctx: TaskContext) -> str:
     """
     p = ctx.profile
     entry = ctx.playbook_entry
+    notes = f"\nSITE NOTES: {entry.notes}" if entry.notes else ""
 
     return (
         f'CRITICAL: If you see a "Verify you are human" Turnstile widget, '
         f"click the widget ONCE to trigger the challenge, THEN call "
         f"'Solve CAPTCHA' to inject the token. DO NOT click the checkbox "
         f"yourself — the tool handles it.\n"
+        f"{notes}\n"
         f"\n"
         f"GOAL: Complete the opt-out flow on {entry.broker_id}.\n"
         f"1. Navigate to {entry.seed_url}\n"
@@ -76,12 +78,14 @@ def _build_search_and_claim_task(ctx: TaskContext) -> str:
     """
     p = ctx.profile
     entry = ctx.playbook_entry
+    notes = f"\nSITE NOTES: {entry.notes}" if entry.notes else ""
 
     return (
         f'CRITICAL: If you see a "Verify you are human" Turnstile widget, '
         f"click the widget ONCE to trigger the challenge, THEN call "
         f"'Solve CAPTCHA' to inject the token. DO NOT click the checkbox "
         f"yourself — the tool handles it.\n"
+        f"{notes}\n"
         f"\n"
         f"GOAL: Find and initiate the opt-out for {p.first_name} {p.last_name} "
         f"on {entry.broker_id}.\n"
