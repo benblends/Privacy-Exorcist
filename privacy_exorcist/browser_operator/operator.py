@@ -94,7 +94,8 @@ class BrowserOperator:
                     api_key="ollama",
                     base_url=self._ollama_base_url,
                     model=self._ollama_model,
-                    temperature=0.1,
+                    temperature=0.0,
+                    dont_force_structured_output=True,  # Gemma4 wraps JSON in markdown fences
                 )
 
             # 5. Build and run agent
